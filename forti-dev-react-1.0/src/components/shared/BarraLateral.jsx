@@ -4,6 +4,7 @@
  * El click en el avatar del usuario dispara el logout (reemplaza CerrarSesion.js).
  */
 
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import MarcaLogo from "./MarcaLogo.jsx";
 
@@ -11,28 +12,29 @@ const NAV_ITEMS = [
   {
     seccion: "General",
     items: [
-      { id: "dashboard", icono: "bi-grid-1x2",     label: "Dashboard" },
-      { id: "proyectos", icono: "bi-folder2",       label: "Proyectos" },
+      { id: "dashboard", ruta: "/dashboard", icono: "bi-grid-1x2",     label: "Dashboard" },
+      { id: "proyectos", ruta: "/proyectos", icono: "bi-folder2",       label: "Proyectos" },
     ],
   },
   {
     seccion: "Seguridad",
     items: [
-      { id: "hallazgos",    icono: "bi-bug",            label: "Hallazgos", badge: "12" },
-      { id: "escaneos",     icono: "bi-radar",          label: "Escaneos" },
-      { id: "reportes",     icono: "bi-bar-chart-line", label: "Reportes" },
+      { id: "hallazgos",    ruta: "/hallazgos", icono: "bi-bug",            label: "Hallazgos", badge: "12" },
+      { id: "escaneos",     ruta: "/escaneos", icono: "bi-radar",          label: "Escaneos" },
+      { id: "reportes",     ruta: "/reportes", icono: "bi-bar-chart-line", label: "Reportes" },
     ],
   },
   {
     seccion: "Sistema",
     items: [
-      { id: "capacitacion",  icono: "bi-mortarboard", label: "Capacitación" },
-      { id: "configuracion", icono: "bi-gear",         label: "Configuración" },
+      { id: "capacitacion",  ruta: "/capacitacion", icono: "bi-mortarboard", label: "Capacitación" },
+      { id: "configuracion", ruta: "/configuracion", icono: "bi-gear",         label: "Configuración" },
     ],
   },
 ];
 
-export default function BarraLateral({ paginaActiva, onNavegar }) {
+export default function BarraLateral({ paginaActiva }) {
+  const navigate = useNavigate();
   const { usuario, logout } = useAuth();
 
   return (
@@ -45,7 +47,7 @@ export default function BarraLateral({ paginaActiva, onNavegar }) {
       {/* Logo / Marca */}
       <button
         className="barra-lateral__marca btn-reset"
-        onClick={() => onNavegar("dashboard")}
+        onClick={() => navigate("/dashboard")}
       >
         <MarcaLogo />
       </button>
@@ -67,13 +69,13 @@ export default function BarraLateral({ paginaActiva, onNavegar }) {
         {NAV_ITEMS.map(({ seccion, items }) => (
           <div className="nav-seccion" key={seccion}>
             <div className="nav-seccion__etiqueta">{seccion}</div>
-            {items.map(({ id, icono, label, badge }) => (
+            {items.map(({ id, ruta, icono, label, badge }) => (
               <button
                 key={id}
                 className={`nav-item btn-reset${
                   paginaActiva === id ? " nav-item--activo" : ""
                 }`}
-                onClick={() => onNavegar(id)}
+                onClick={() => navigate(ruta)}
               >
                 <span className="nav-item__icono">
                   <i className={`bi ${icono}`}></i>

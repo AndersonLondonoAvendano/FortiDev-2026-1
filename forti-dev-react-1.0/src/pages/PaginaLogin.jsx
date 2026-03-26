@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import MarcaLogo from "../components/shared/MarcaLogo.jsx";
 
@@ -18,7 +19,8 @@ const STATS_PANEL = [
   { color: "var(--color-bajo)",    titulo: "Gestión colaborativa",  desc: "Equipos DevSec sincronizados" },
 ];
 
-export default function PaginaLogin({ onNavegar }) {
+export default function PaginaLogin() {
+  const navigate = useNavigate();
   const { login } = useAuth();
 
   const [email,          setEmail]          = useState("");
@@ -44,7 +46,7 @@ export default function PaginaLogin({ onNavegar }) {
     // TODO: reemplazar con fetch POST /api/auth/login
     setTimeout(() => {
       login("Anderson");
-      onNavegar("dashboard");
+      navigate("/dashboard");
       setCargando(false);
     }, 800);
   };
@@ -58,7 +60,7 @@ export default function PaginaLogin({ onNavegar }) {
           <button
             className="encabezado-principal__marca btn-reset"
             style={{ marginBottom: "48px" }}
-            onClick={() => onNavegar("inicio")}
+            onClick={() => navigate("/")}
           >
             <MarcaLogo />
           </button>
@@ -205,7 +207,7 @@ export default function PaginaLogin({ onNavegar }) {
             ¿No tienes cuenta?{" "}
             <button
               className="btn-reset enlace-interno"
-              onClick={() => onNavegar("registro")}
+              onClick={() => navigate("/registro")}
             >
               Crear cuenta nueva
             </button>

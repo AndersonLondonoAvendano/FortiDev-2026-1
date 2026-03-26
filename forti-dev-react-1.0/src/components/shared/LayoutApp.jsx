@@ -9,14 +9,13 @@ import BarraSuperior from "./BarraSuperior.jsx";
 
 export default function LayoutApp({
   pagina,
-  onNavegar,
   children,
   tituloBarra,
   placeholderBusqueda,
 }) {
   return (
     <div className="pagina-aplicacion">
-      <BarraLateral paginaActiva={pagina} onNavegar={onNavegar} />
+      <BarraLateral paginaActiva={pagina} />
       <BarraSuperior titulo={tituloBarra} placeholder={placeholderBusqueda} />
       <main className="contenido-principal" id="contenido-principal">
         {children}

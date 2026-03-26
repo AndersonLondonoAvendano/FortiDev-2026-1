@@ -21,7 +21,7 @@ const ESTADO_INICIAL_FORM = {
   soloCriticos: false,
 };
 
-export default function PaginaReportes({ onNavegar }) {
+export default function PaginaReportes() {
   const [form, setForm]       = useState(ESTADO_INICIAL_FORM);
   const [reportes, setReportes] = useState(REPORTES_MOCK);
 
@@ -44,7 +44,6 @@ export default function PaginaReportes({ onNavegar }) {
   return (
     <LayoutApp
       pagina="reportes"
-      onNavegar={onNavegar}
       tituloBarra="Reportes"
       placeholderBusqueda="Buscar reportes..."
     >

@@ -9,6 +9,7 @@
  */
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import MarcaLogo from "../components/shared/MarcaLogo.jsx";
 
@@ -30,7 +31,8 @@ function calcularFuerza(c) {
   return f;
 }
 
-export default function PaginaRegistro({ onNavegar }) {
+export default function PaginaRegistro() {
+  const navigate = useNavigate();
   const { login } = useAuth();
 
   const [form, setForm]               = useState({ nombre: "", email: "", rol: "", contrasena: "" });
@@ -54,7 +56,7 @@ export default function PaginaRegistro({ onNavegar }) {
 
     // TODO: reemplazar con fetch POST /api/auth/registro
     login(form.nombre.split(" ")[0]);
-    onNavegar("dashboard");
+    navigate("/dashboard");
   };
 
   return (
@@ -66,7 +68,7 @@ export default function PaginaRegistro({ onNavegar }) {
           <button
             className="encabezado-principal__marca btn-reset"
             style={{ marginBottom: "48px" }}
-            onClick={() => onNavegar("inicio")}
+            onClick={() => navigate("/")}
           >
             <MarcaLogo />
           </button>
@@ -255,7 +257,7 @@ export default function PaginaRegistro({ onNavegar }) {
             ¿Ya tienes cuenta?{" "}
             <button
               className="btn-reset enlace-interno"
-              onClick={() => onNavegar("login")}
+              onClick={() => navigate("/login")}
             >
               Iniciar sesión
             </button>

@@ -6,10 +6,12 @@
  */
 
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import MarcaLogo from "../components/shared/MarcaLogo.jsx";
 import FormularioContacto from "../components/shared/FormularioContacto.jsx";
 
-export default function PaginaInicio({ onNavegar }) {
+export default function PaginaInicio() {
+  const navigate = useNavigate();
   const [menuAbierto, setMenuAbierto] = useState(false);
 
   return (
@@ -45,13 +47,13 @@ export default function PaginaInicio({ onNavegar }) {
           <div className="encabezado-principal__acciones">
             <button
               className="btn btn--secundario btn--sm"
-              onClick={() => onNavegar("login")}
+              onClick={() => navigate("/login")}
             >
               Iniciar sesión
             </button>
             <button
               className="btn btn--primario btn--sm"
-              onClick={() => onNavegar("registro")}
+              onClick={() => navigate("/registro")}
             >
               Registrarse
             </button>
@@ -86,7 +88,7 @@ export default function PaginaInicio({ onNavegar }) {
             <div className="seccion-hero__ctas">
               <button
                 className="btn btn--primario btn--lg"
-                onClick={() => onNavegar("registro")}
+                onClick={() => navigate("/registro")}
               >
                 Comenzar ahora
               </button>
@@ -307,7 +309,7 @@ export default function PaginaInicio({ onNavegar }) {
             <a href="#inicio">Inicio</a>
             <button
               className="btn-reset nav-link-btn"
-              onClick={() => onNavegar("login")}
+              onClick={() => navigate("/login")}
             >
               Acceder
             </button>

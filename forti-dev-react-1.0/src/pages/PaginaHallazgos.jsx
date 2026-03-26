@@ -22,7 +22,7 @@ const TABS = [
   { id: "resueltos",   label: "Resueltos" },
 ];
 
-export default function PaginaHallazgos({ onNavegar }) {
+export default function PaginaHallazgos() {
   const {
     filtroSeveridad, setFiltroSeveridad,
     filtroEstado,    setFiltroEstado,
@@ -43,7 +43,6 @@ export default function PaginaHallazgos({ onNavegar }) {
   return (
     <LayoutApp
       pagina="hallazgos"
-      onNavegar={onNavegar}
       tituloBarra="Hallazgos"
       placeholderBusqueda="Buscar hallazgos..."
     >
