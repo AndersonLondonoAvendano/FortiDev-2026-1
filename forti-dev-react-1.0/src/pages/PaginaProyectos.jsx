@@ -4,14 +4,15 @@
  * Lee los datos desde src/data/proyectos.js
  */
 
+import { useNavigate } from "react-router-dom";
 import LayoutApp from "../components/shared/LayoutApp.jsx";
 import { PROYECTOS } from "../data/proyectos.js";
 
-export default function PaginaProyectos({ onNavegar }) {
+export default function PaginaProyectos() {
+  const navigate = useNavigate();
   return (
     <LayoutApp
       pagina="proyectos"
-      onNavegar={onNavegar}
       tituloBarra="Proyectos"
       placeholderBusqueda="Buscar proyectos..."
     >
@@ -127,7 +128,7 @@ export default function PaginaProyectos({ onNavegar }) {
               <div className="tarjeta-proyecto__acciones">
                 <button
                   className="btn btn--secundario btn--sm"
-                  onClick={() => onNavegar("hallazgos")}
+                  onClick={() => navigate("/hallazgos")}
                 >
                   Ver hallazgos
                 </button>

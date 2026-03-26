@@ -9,6 +9,7 @@
  *  - Tabla de hallazgos recientes
  */
 
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import LayoutApp from "../components/shared/LayoutApp.jsx";
 import TablaHallazgos from "../components/shared/TablaHallazgos.jsx";
@@ -36,13 +37,13 @@ const ACTIVIDAD = [
   { tipo: "resuelto", icono: "bi-check-circle-fill",        texto: <>Reporte generado: <strong>Informe Q1 2025</strong></>,                             tiempo: "Hace 1 día",   badge: <span className="estado-badge estado-badge--resuelto">Reporte</span> },
 ];
 
-export default function PaginaDashboard({ onNavegar }) {
+export default function PaginaDashboard() {
+  const navigate = useNavigate();
   const { usuario } = useAuth();
 
   return (
     <LayoutApp
       pagina="dashboard"
-      onNavegar={onNavegar}
       tituloBarra="Dashboard"
       placeholderBusqueda="Buscar hallazgos, proyectos..."
     >
@@ -62,7 +63,7 @@ export default function PaginaDashboard({ onNavegar }) {
           </button>
           <button
             className="btn btn--primario btn--sm"
-            onClick={() => onNavegar("reportes")}
+            onClick={() => navigate("/reportes")}
           >
             + Generar reporte
           </button>
@@ -138,7 +139,7 @@ export default function PaginaDashboard({ onNavegar }) {
             <h3 className="titulo-tarjeta">Actividad reciente</h3>
             <button
               className="btn-reset enlace-ver-todos"
-              onClick={() => onNavegar("hallazgos")}
+              onClick={() => navigate("/hallazgos")}
             >
               Ver todos
             </button>
@@ -173,7 +174,7 @@ export default function PaginaDashboard({ onNavegar }) {
             </button>
             <button
               className="btn btn--primario btn--sm"
-              onClick={() => onNavegar("hallazgos")}
+              onClick={() => navigate("/hallazgos")}
             >
               Ver todos los hallazgos
             </button>

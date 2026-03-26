@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext.jsx";
 import PaginaInicio from "./pages/PaginaInicio.jsx";
 import PaginaLogin from "./pages/PaginaLogin.jsx";
@@ -10,30 +10,19 @@ import PaginaReportes from "./pages/PaginaReportes.jsx";
 import estilos from "./styles/estilos.js";
 
 export default function App() {
-  const [pagina, setPagina] = useState("inicio");
-
-  const navegarA = useCallback((destino) => {
-    setPagina(destino);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
-
-  const renderPagina = () => {
-    switch (pagina) {
-      case "inicio":    return <PaginaInicio    onNavegar={navegarA} />;
-      case "login":     return <PaginaLogin     onNavegar={navegarA} />;
-      case "registro":  return <PaginaRegistro  onNavegar={navegarA} />;
-      case "dashboard": return <PaginaDashboard onNavegar={navegarA} />;
-      case "proyectos": return <PaginaProyectos onNavegar={navegarA} />;
-      case "hallazgos": return <PaginaHallazgos onNavegar={navegarA} />;
-      case "reportes":  return <PaginaReportes  onNavegar={navegarA} />;
-      default:          return <PaginaInicio    onNavegar={navegarA} />;
-    }
-  };
-
   return (
     <AuthProvider>
       <style dangerouslySetInnerHTML={{ __html: estilos }} />
-      {renderPagina()}
+      <Routes>
+        <Route path="/" element={<PaginaInicio />} />
+        <Route path="/login" element={<PaginaLogin />} />
+        <Route path="/registro" element={<PaginaRegistro />} />
+        <Route path="/dashboard" element={<PaginaDashboard />} />
+        <Route path="/proyectos" element={<PaginaProyectos />} />
+        <Route path="/hallazgos" element={<PaginaHallazgos />} />
+        <Route path="/reportes" element={<PaginaReportes />} />
+        <Route path="*" element={<PaginaInicio />} />
+      </Routes>
     </AuthProvider>
   );
 }
