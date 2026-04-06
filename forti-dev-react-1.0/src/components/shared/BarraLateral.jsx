@@ -33,9 +33,19 @@ const NAV_ITEMS = [
   },
 ];
 
-export default function BarraLateral({ paginaActiva }) {
+export default function BarraLateral({ paginaActiva, onMostrarModal }) {
   const navigate = useNavigate();
   const { usuario, logout } = useAuth();
+
+  const rutasImplementadas = ['/dashboard', '/proyectos', '/hallazgos', '/escaneos'];
+
+  const handleClick = (ruta) => {
+    if (rutasImplementadas.includes(ruta)) {
+      navigate(ruta);
+    } else {
+      onMostrarModal(true);
+    }
+  };
 
   return (
     <aside
@@ -75,7 +85,7 @@ export default function BarraLateral({ paginaActiva }) {
                 className={`nav-item btn-reset${
                   paginaActiva === id ? " nav-item--activo" : ""
                 }`}
-                onClick={() => navigate(ruta)}
+                onClick={() => handleClick(ruta)}
               >
                 <span className="nav-item__icono">
                   <i className={`bi ${icono}`}></i>

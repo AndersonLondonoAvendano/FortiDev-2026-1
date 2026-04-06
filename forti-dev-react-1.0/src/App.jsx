@@ -6,7 +6,7 @@ import PaginaRegistro from "./pages/PaginaRegistro.jsx";
 import PaginaDashboard from "./pages/PaginaDashboard.jsx";
 import PaginaProyectos from "./pages/PaginaProyectos.jsx";
 import PaginaHallazgos from "./pages/PaginaHallazgos.jsx";
-import PaginaReportes from "./pages/PaginaReportes.jsx";
+import PaginaEscaneos from "./pages/PaginaEscaneos.jsx";
 import estilos from "./styles/estilos.js";
 
 export default function App() {
@@ -20,7 +20,7 @@ export default function App() {
         <Route path="/dashboard" element={<PaginaDashboard />} />
         <Route path="/proyectos" element={<PaginaProyectos />} />
         <Route path="/hallazgos" element={<PaginaHallazgos />} />
-        <Route path="/reportes" element={<PaginaReportes />} />
+        <Route path="/escaneos" element={<PaginaEscaneos />} />
         <Route path="*" element={<PaginaInicio />} />
       </Routes>
     </AuthProvider>

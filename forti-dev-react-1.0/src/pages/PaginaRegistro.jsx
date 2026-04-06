@@ -39,6 +39,7 @@ export default function PaginaRegistro() {
   const [verContrasena, setVerContrasena] = useState(false);
   const [errores, setErrores]         = useState({});
   const [fuerzaContrasena, setFuerza] = useState(0);
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
   const handleContrasena = (v) => {
     setForm({ ...form, contrasena: v });
@@ -48,9 +49,40 @@ export default function PaginaRegistro() {
   const handleSubmit = (e) => {
     e.preventDefault();
     const errs = {};
-    if (!form.nombre)    errs.nombre    = "Por favor ingresa tu nombre completo.";
-    if (!form.email)     errs.email     = "Por favor ingresa tu correo electrónico.";
-    if (!form.contrasena) errs.contrasena = "Por favor crea una contraseña.";
+
+    // Validación del nombre
+    if (!form.nombre.trim()) {
+      errs.nombre = "Por favor ingresa tu nombre completo.";
+    } else if (!/^[a-zA-Z\s]+$/.test(form.nombre.trim())) {
+      errs.nombre = "El nombre solo puede contener letras y espacios.";
+    } else if (form.nombre.trim().length < 2) {
+      errs.nombre = "El nombre debe tener al menos 2 caracteres.";
+    }
+
+    // Validación del email
+    if (!form.email.trim()) {
+      errs.email = "Por favor ingresa tu correo electrónico.";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
+      errs.email = "Por favor ingresa un correo electrónico válido.";
+    }
+
+    // Validación del rol
+    if (!form.rol) {
+      errs.rol = "Por favor selecciona un rol.";
+    }
+
+    // Validación de la contraseña
+    if (!form.contrasena.trim()) {
+      errs.contrasena = "Por favor crea una contraseña.";
+    } else if (fuerzaContrasena < 2) {
+      errs.contrasena = "La contraseña debe ser al menos regular (mínimo 8 caracteres, con mayúsculas, números y símbolos).";
+    }
+
+    // Validación de términos
+    if (!aceptaTerminos) {
+      errs.terminos = "Debes aceptar los términos de servicio y la política de privacidad.";
+    }
+
     setErrores(errs);
     if (Object.keys(errs).length > 0) return;
 
@@ -143,6 +175,9 @@ export default function PaginaRegistro() {
                   <option value="dev">Desarrollador</option>
                   <option value="analista">Analista de seguridad</option>
                 </select>
+                {errores.rol && (
+                  <span className="campo-error" role="alert">{errores.rol}</span>
+                )}
               </div>
             </div>
 
@@ -223,7 +258,11 @@ export default function PaginaRegistro() {
 
             {/* Términos */}
             <label className="checkbox-personalizado">
-              <input type="checkbox" required />
+              <input
+                type="checkbox"
+                checked={aceptaTerminos}
+                onChange={(e) => setAceptaTerminos(e.target.checked)}
+              />
               <span className="checkbox-personalizado__indicador"></span>
               <span className="checkbox-personalizado__etiqueta">
                 Acepto los{" "}
@@ -231,6 +270,9 @@ export default function PaginaRegistro() {
                 <a href="#" className="enlace-interno">Política de privacidad</a>
               </span>
             </label>
+            {errores.terminos && (
+              <span className="campo-error" role="alert">{errores.terminos}</span>
+            )}
 
             <button
               className="btn btn--primario btn-registro"
