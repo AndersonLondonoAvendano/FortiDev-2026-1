@@ -26,6 +26,7 @@ const getNavItems = (rol) => {
       seccion: "General",
       items: [
         { id: "dashboard", ruta: "/dashboard", icono: "bi-grid-1x2", label: "Dashboard" },
+        { id: "organizaciones", ruta: "/organizaciones", icono: "bi-building", label: "Organizaciones" },
         { id: "proyectos", ruta: "/proyectos", icono: "bi-folder2", label: "Proyectos" },
       ],
     },
@@ -47,7 +48,7 @@ const getNavItems = (rol) => {
   ];
 
   // Agregar sección de administración solo si es admin
-  if (rol === "admin") {
+  if (rol === "ADMIN") {
     navItems.push({
       seccion: "Administración",
       items: [
@@ -63,8 +64,8 @@ export default function BarraLateral({ paginaActiva, onMostrarModal }) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
-  const rutasImplementadas = ['/dashboard', '/proyectos', '/hallazgos', '/escaneos', '/gestion-usuarios'];
-  const NAV_ITEMS = getNavItems(user?.rol);
+  const rutasImplementadas = ['/dashboard', '/organizaciones', '/proyectos', '/hallazgos', '/escaneos', '/gestion-usuarios'];
+  const NAV_ITEMS = getNavItems(user?.role);
 
   const handleClick = (ruta) => {
     if (rutasImplementadas.includes(ruta)) {
@@ -137,14 +138,14 @@ export default function BarraLateral({ paginaActiva, onMostrarModal }) {
           style={{ cursor: "pointer" }}
         >
           <div className="usuario-perfil__avatar">
-            {getInitials(user?.nombre)}
+            {getInitials(user?.name)}
           </div>
           <div className="usuario-perfil__info">
             <div className="usuario-perfil__nombre">
-              {user?.nombre || "Usuario"}
+              {user?.name || "Usuario"}
             </div>
             <div className="usuario-perfil__rol">
-              {user?.rol ? user.rol.charAt(0).toUpperCase() + user.rol.slice(1) : "Sin rol"}
+              {user?.role ?? "Sin rol"}
             </div>
           </div>
           <span className="usuario-perfil__opciones">

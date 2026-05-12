@@ -11,7 +11,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import apiClient from "../services/apiClient.js";
+import * as authApi from "../api/auth.js";
 import MarcaLogo from "../components/shared/MarcaLogo.jsx";
 
 const STATS_PANEL = [
@@ -45,17 +45,8 @@ export default function PaginaLogin() {
 
     setCargando(true);
     try {
-      // Hacer POST a /api/auth/login
-      const response = await apiClient.post('/auth/login', {
-        email: email.trim(),
-        contrasena: contrasena,
-      });
-
-      // Extraer token y datos del usuario
-      const { token, user } = response.data;
-
-      // Guardar en el contexto de autenticación
-      login(user, token);
+      const { accessToken, user } = await authApi.login(email.trim(), contrasena);
+      login(user, accessToken);
 
       // Navegar al dashboard
       navigate("/dashboard");
@@ -63,8 +54,8 @@ export default function PaginaLogin() {
       setCargando(false);
       
       // Manejar errores específicos del servidor
-      if (error.response?.data?.message) {
-        setAlertaGlobal(error.response.data.message);
+      if (error.response?.data?.error) {
+        setAlertaGlobal(error.response.data.error);
       } else if (error.message === 'Network Error') {
         setAlertaGlobal("Error de conexión. Verifica que el servidor esté corriendo.");
       } else {

@@ -16,7 +16,7 @@ export default function AdminRoute({ children }) {
   }
 
   // Si está autenticado pero NO es administrador, redirige a dashboard
-  if (user?.rol !== "admin") {
+  if (user?.role !== "ADMIN") {
     return <Navigate to="/dashboard" replace />;
   }
 

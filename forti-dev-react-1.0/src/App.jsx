@@ -10,6 +10,8 @@ import PaginaProyectos from "./pages/PaginaProyectos.jsx";
 import PaginaHallazgos from "./pages/PaginaHallazgos.jsx";
 import PaginaEscaneos from "./pages/PaginaEscaneos.jsx";
 import PaginaGestionUsuarios from "./pages/PaginaGestionUsuarios.jsx";
+import PaginaOrganizaciones from "./pages/PaginaOrganizaciones.jsx";
+import PaginaDetalleOrganizacion from "./pages/PaginaDetalleOrganizacion.jsx";
 import estilos from "./styles/estilos.js";
 import Users from "../src/components/shared/Users.jsx";
 
@@ -57,6 +59,23 @@ export default function App() {
           }
         />
         
+        <Route
+          path="/organizaciones"
+          element={
+            <ProtectedRoute>
+              <PaginaOrganizaciones />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/organizaciones/:id"
+          element={
+            <ProtectedRoute>
+              <PaginaDetalleOrganizacion />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Rutas protegidas solo para administradores */}
         <Route
           path="/gestion-usuarios"
