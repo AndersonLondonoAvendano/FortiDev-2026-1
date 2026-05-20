@@ -9,7 +9,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import apiClient from "../services/apiClient.js";
+import * as authApi from "../api/auth.js";
 import MarcaLogo from "../components/shared/MarcaLogo.jsx";
 
 const STATS_PANEL = [
@@ -20,6 +20,8 @@ const STATS_PANEL = [
 
 const NIVELES_LABELS  = ["", "Débil", "Regular", "Fuerte", "Muy fuerte"];
 const NIVELES_CLASES  = ["", "--debil", "--regular", "--fuerte", "--muy-fuerte"];
+
+const ROL_MAP = { admin: "ADMIN", dev: "DEVELOPER", analista: "ANALYST" };
 
 // Patrones de validación
 const PATTERNS = {
@@ -97,8 +99,8 @@ export default function PaginaRegistro() {
       setFuerza(calcularFuerza(value));
     }
 
-    // Validar en tiempo real si el campo fue tocado
-    if (touchedFields[field]) {
+    // Clear error as soon as user corrects the field (after first submit or blur)
+    if (touchedFields[field] || errores[field]) {
       validarCampo(field, value);
     }
   };
@@ -155,37 +157,31 @@ export default function PaginaRegistro() {
     // Llamada a la API para registrar
     setCargando(true);
     try {
-      // Paso 1: Registrar el usuario
-      await apiClient.post('/auth/register', {
-        nombre: form.nombre.trim(),
+      await authApi.register({
+        name: form.nombre.trim(),
         email: form.email.trim(),
-        rol: form.rol,
-        contrasena: form.contrasena,
+        role: ROL_MAP[form.rol],
+        password: form.contrasena,
       });
 
-      // Paso 2: Hacer login automático para obtener el token
-      const loginResponse = await apiClient.post('/auth/login', {
-        email: form.email.trim(),
-        contrasena: form.contrasena,
-      });
-
-      // Paso 3: Guardar datos en el contexto de autenticación
-      login(loginResponse.data.user, loginResponse.data.token);
-
-      // Paso 4: Navegar al dashboard
+      const { accessToken, user } = await authApi.login(form.email.trim(), form.contrasena);
+      login(user, accessToken);
       navigate("/dashboard");
     } catch (error) {
       setCargando(false);
-      
-      // Manejar errores de validación del servidor
-      if (error.response?.data?.errors) {
-        setErrores(error.response.data.errors);
-      } else if (error.response?.data?.message) {
-        setErrores({ servidor: error.response.data.message });
-      } else if (error.message === 'Network Error') {
-        setErrores({ servidor: "Error de conexión. Intenta de nuevo." });
+
+      if (error.message === 'Network Error') {
+        setErrores({ servidor: "Error de conexión. Verifica que el servidor esté corriendo." });
+      } else if (error.response?.data?.details?.body) {
+        const fieldErrors = error.response.data.details.body;
+        const msg = Object.entries(fieldErrors)
+          .map(([field, msgs]) => `${field}: ${msgs.join(', ')}`)
+          .join(' · ');
+        setErrores({ servidor: msg });
+      } else if (error.response?.data?.error) {
+        setErrores({ servidor: error.response.data.error });
       } else {
-        setErrores({ servidor: "Ocurrió un error desconocido." });
+        setErrores({ servidor: "Ocurrió un error inesperado. Intenta de nuevo." });
       }
     }
   };
@@ -395,15 +391,16 @@ export default function PaginaRegistro() {
             )}
 
             {errores.servidor && (
-              <div className="campo-error" role="alert" style={{ display: "block", padding: "10px", backgroundColor: "#fee", borderRadius: "4px" }}>
-                {errores.servidor}
+              <div className="alerta-formulario" role="alert">
+                <i className="bi bi-exclamation-circle"></i>
+                <span>{errores.servidor}</span>
               </div>
             )}
 
             <button
               className="btn btn--primario btn-registro"
               onClick={handleSubmit}
-              disabled={cargando || Object.values(errores).some(e => e && e !== "")}
+              disabled={cargando}
               aria-busy={cargando}
             >
               {cargando ? "Registrando..." : "Crear cuenta"}

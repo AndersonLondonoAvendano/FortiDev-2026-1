@@ -1,21 +1,44 @@
-import { PrismaClient } from '@prisma/client';
+import pg from 'pg';
 import { logger } from './logger.js';
 
-export const prisma = new PrismaClient({
-  log: [
-    { emit: 'event', level: 'error' },
-    { emit: 'event', level: 'warn' },
-  ],
+const { Pool } = pg;
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
 });
 
-prisma.$on('error', (e) => logger.error({ msg: 'Prisma error', error: e.message }));
-prisma.$on('warn', (e) => logger.warn({ msg: 'Prisma warning', warning: e.message }));
+pool.on('error', (err) => {
+  logger.error({ msg: 'Unexpected PostgreSQL pool error', error: err.message });
+});
+
+export const query = (text, params) => pool.query(text, params);
+
+export const transaction = async (callback) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+};
 
 export async function connectDatabase() {
-  await prisma.$connect();
+  const client = await pool.connect();
+  client.release();
   logger.info('Database connected');
 }
 
 export async function disconnectDatabase() {
-  await prisma.$disconnect();
+  await pool.end();
 }
+
+export default pool;

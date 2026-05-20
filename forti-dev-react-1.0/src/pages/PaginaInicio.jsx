@@ -51,12 +51,14 @@ export default function PaginaInicio() {
             >
               Iniciar sesión
             </button>
+            {/* Registro deshabilitado: solo admins pueden crear usuarios desde /gestion-usuarios
             <button
               className="btn btn--primario btn--sm"
               onClick={() => navigate("/registro")}
             >
               Registrarse
             </button>
+            */}
           </div>
         </div>
       </header>
@@ -86,12 +88,14 @@ export default function PaginaInicio() {
             </p>
 
             <div className="seccion-hero__ctas">
+              {/* Registro deshabilitado: solo admins pueden crear usuarios desde /gestion-usuarios
               <button
                 className="btn btn--primario btn--lg"
                 onClick={() => navigate("/registro")}
               >
                 Comenzar ahora
               </button>
+              */}
               <a href="#sobre-proyecto" className="btn btn--secundario btn--lg">
                 Ver documentación
               </a>

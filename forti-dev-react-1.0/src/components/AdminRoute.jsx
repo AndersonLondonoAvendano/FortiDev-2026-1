@@ -8,18 +8,23 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function AdminRoute({ children }) {
-  const { isAuth, token, user } = useAuth();
+  const { isAuth, isLoading, user } = useAuth();
 
-  // Si no hay token y no está autenticado, redirige a login
-  if (!isAuth || !token) {
-    return <Navigate to="/login" replace />;
+  if (isLoading) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        height: "100vh", background: "var(--color-fondo)",
+        color: "var(--color-texto-tenue)", fontFamily: "var(--fuente-mono)",
+        fontSize: "0.85rem", gap: "10px",
+      }}>
+        <span style={{ opacity: 0.5 }}>●</span> Verificando sesión…
+      </div>
+    );
   }
 
-  // Si está autenticado pero NO es administrador, redirige a dashboard
-  if (user?.role !== "ADMIN") {
-    return <Navigate to="/dashboard" replace />;
-  }
+  if (!isAuth) return <Navigate to="/login" replace />;
+  if (user?.role !== "ADMIN") return <Navigate to="/dashboard" replace />;
 
-  // Si está autenticado Y es administrador, renderiza el componente
   return children;
 }

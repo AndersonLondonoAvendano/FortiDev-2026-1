@@ -1,52 +1,56 @@
 import bcrypt from 'bcryptjs';
-import { prisma } from '../../config/database.js';
 import { logger } from '../../config/logger.js';
+import * as q from './users.queries.js';
 
 const SALT_ROUNDS = 12;
-const SAFE_SELECT = {
-  id: true, email: true, name: true, role: true,
-  isActive: true, createdAt: true, updatedAt: true,
-};
+
+function mapUser(row) {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: row.role,
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function throwNotFound() {
+  const err = new Error('User not found');
+  err.status = 404;
+  throw err;
+}
 
 export async function listUsers() {
-  return prisma.user.findMany({ select: SAFE_SELECT, orderBy: { createdAt: 'desc' } });
+  const { rows } = await q.listUsers();
+  return rows.map(mapUser);
 }
 
 export async function getUser(id) {
-  const user = await prisma.user.findUnique({ where: { id }, select: SAFE_SELECT });
-  if (!user) {
-    const err = new Error('User not found');
-    err.status = 404;
-    throw err;
-  }
-  return user;
+  const { rows } = await q.findUserById(id);
+  if (!rows[0]) throwNotFound();
+  return mapUser(rows[0]);
 }
 
 export async function createUser({ email, password, name, role }) {
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
+  const { rows: existing } = await q.findUserByEmail(email);
+  if (existing.length > 0) {
     const err = new Error('Email already in use');
     err.status = 409;
     throw err;
   }
   const hashed = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = await prisma.user.create({
-    data: { email, password: hashed, name, role: role ?? 'DEVELOPER' },
-    select: SAFE_SELECT,
-  });
+  const { rows: [user] } = await q.insertUser(email, hashed, name, role ?? 'DEVELOPER');
   logger.info({ msg: 'Admin created user', userId: user.id });
-  return user;
+  return mapUser(user);
 }
 
 export async function updateUser(id, { email, name, role, isActive }) {
   await getUser(id);
-  const user = await prisma.user.update({
-    where: { id },
-    data: { email, name, role, isActive },
-    select: SAFE_SELECT,
-  });
+  const { rows: [user] } = await q.updateUser(id, { email, name, role, isActive });
   logger.info({ msg: 'Admin updated user', userId: id });
-  return user;
+  return mapUser(user);
 }
 
 export async function deleteUser(id, requesterId) {
@@ -56,23 +60,16 @@ export async function deleteUser(id, requesterId) {
     throw err;
   }
   await getUser(id);
-  const user = await prisma.user.update({
-    where: { id },
-    data: { isActive: false },
-    select: SAFE_SELECT,
-  });
+  const { rows: [user] } = await q.updateUser(id, { isActive: false });
   logger.info({ msg: 'Admin soft-deleted user', userId: id });
-  return user;
+  return mapUser(user);
 }
 
 export async function changePassword(id, { currentPassword, newPassword }, requesterId) {
   const isSelf = id === requesterId;
-  const target = await prisma.user.findUnique({ where: { id } });
-  if (!target) {
-    const err = new Error('User not found');
-    err.status = 404;
-    throw err;
-  }
+  const { rows } = await q.findUserByIdWithPassword(id);
+  if (!rows[0]) throwNotFound();
+  const target = rows[0];
 
   if (isSelf) {
     const match = await bcrypt.compare(currentPassword, target.password);
@@ -84,6 +81,6 @@ export async function changePassword(id, { currentPassword, newPassword }, reque
   }
 
   const hashed = await bcrypt.hash(newPassword, SALT_ROUNDS);
-  await prisma.user.update({ where: { id }, data: { password: hashed } });
+  await q.updatePassword(id, hashed);
   logger.info({ msg: 'Password changed', userId: id });
 }

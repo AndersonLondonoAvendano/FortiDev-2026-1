@@ -9,20 +9,38 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [isAuth, setIsAuth] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem("accessToken");
     const savedUser = localStorage.getItem("user");
-    if (savedToken && savedUser) {
-      try {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-        setIsAuth(true);
-      } catch {
+    if (!savedUser) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Always attempt a silent refresh on mount to verify/renew the session.
+    // This prevents stale access tokens from causing cascading 401s.
+    authApi.refresh()
+      .then(({ accessToken }) => {
+        try {
+          const userData = JSON.parse(savedUser);
+          setToken(accessToken);
+          setUser(userData);
+          setIsAuth(true);
+          localStorage.setItem("accessToken", accessToken);
+        } catch {
+          localStorage.removeItem("accessToken");
+          localStorage.removeItem("user");
+        }
+      })
+      .catch(() => {
+        // Refresh token invalid/expired — force a clean logout
         localStorage.removeItem("accessToken");
         localStorage.removeItem("user");
-      }
-    }
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   const login = useCallback((userData, accessToken) => {
@@ -46,7 +64,7 @@ export function AuthProvider({ children }) {
   }, [navigate]);
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuth, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuth, isLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

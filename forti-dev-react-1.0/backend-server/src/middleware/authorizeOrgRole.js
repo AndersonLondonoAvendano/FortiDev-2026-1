@@ -1,12 +1,5 @@
-import { prisma } from '../config/database.js';
+import { query } from '../config/database.js';
 
-/**
- * Verifies that req.user is a member of the organization referenced by req.params.id
- * and optionally enforces one of the allowed OrgRole values.
- *
- * Usage:
- *   router.put('/:id', authenticate, authorizeOrgRole('OWNER', 'ADMIN'), controller.update)
- */
 export function authorizeOrgRole(...roles) {
   return async (req, res, next) => {
     if (!req.user) {
@@ -17,19 +10,21 @@ export function authorizeOrgRole(...roles) {
     const userId = req.user.id;
 
     try {
-      const member = await prisma.organizationMember.findUnique({
-        where: { organizationId_userId: { organizationId, userId } },
-      });
+      const { rows } = await query(
+        `SELECT role FROM organization_members
+         WHERE organization_id = $1 AND user_id = $2`,
+        [organizationId, userId]
+      );
 
-      if (!member) {
+      if (!rows[0]) {
         return res.status(403).json({ error: 'Not a member of this organization' });
       }
 
-      if (roles.length > 0 && !roles.includes(member.role)) {
+      if (roles.length > 0 && !roles.includes(rows[0].role)) {
         return res.status(403).json({ error: 'Insufficient organization permissions' });
       }
 
-      req.orgMember = member;
+      req.orgMember = rows[0];
       next();
     } catch (err) {
       next(err);

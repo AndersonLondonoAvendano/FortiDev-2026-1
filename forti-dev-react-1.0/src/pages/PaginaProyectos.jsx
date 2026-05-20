@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import LayoutApp from "../components/shared/LayoutApp.jsx";
 import * as projectsApi from "../api/projects.js";
 import * as orgsApi from "../api/organizations.js";
+import { useOrg } from "../context/OrgContext.jsx";
 
 const SEVERITY_LABELS = { critico: "Críticas", alto: "Altas", medio: "Medias", bajo: "Bajas" };
 const GRADIENTS = [
@@ -18,8 +19,8 @@ function getInitials(name = "") {
 
 export default function PaginaProyectos() {
   const navigate = useNavigate();
+  const { currentOrg, orgs } = useOrg();
   const [projects, setProjects] = useState([]);
-  const [orgs, setOrgs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -28,22 +29,27 @@ export default function PaginaProyectos() {
   const [submitting, setSubmitting] = useState(false);
   const [startingScan, setStartingScan] = useState(null);
 
+  // Pre-fill organizationId when currentOrg changes
+  useEffect(() => {
+    if (currentOrg) setForm((f) => ({ ...f, organizationId: currentOrg.id }));
+  }, [currentOrg]);
+
   const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
-      const [projectData, orgData] = await Promise.all([
-        projectsApi.listProjects(),
-        orgsApi.listOrganizations().catch(() => []),
-      ]);
-      setProjects(projectData);
-      setOrgs(orgData);
+      const all = await projectsApi.listProjects();
+      // Filter by selected org; projects with no org show in all contexts (backward compat)
+      const filtered = currentOrg
+        ? all.filter((p) => !p.organizationId || p.organizationId === currentOrg.id)
+        : all;
+      setProjects(filtered);
     } catch {
       setError("Error al cargar los proyectos. Verifica tu conexión.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentOrg]);
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 

@@ -3,9 +3,10 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { prisma } from '../../config/database.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
+import { transaction } from '../../config/database.js';
+import * as q from './scans.queries.js';
 
 const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,36 +22,72 @@ async function verifySemgrep() {
 }
 verifySemgrep();
 
+function mapScan(row) {
+  return {
+    id: row.id,
+    type: row.type,
+    status: row.status,
+    tool: row.tool,
+    startedAt: row.started_at,
+    completedAt: row.completed_at,
+    summary: row.summary,
+    errorMessage: row.error_message,
+    createdAt: row.created_at,
+    projectId: row.project_id,
+    triggeredByUser: row.user_id
+      ? { id: row.user_id, name: row.user_name, email: row.user_email }
+      : undefined,
+  };
+}
+
+function mapFinding(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    severity: row.severity,
+    category: row.category,
+    cwe: row.cwe,
+    owasp: row.owasp,
+    filePath: row.file_path,
+    lineStart: row.line_start,
+    lineEnd: row.line_end,
+    codeSnippet: row.code_snippet,
+    rule: row.rule,
+    status: row.status,
+    notes: row.notes,
+    evidence: row.evidence,
+    createdAt: row.created_at,
+    assignedUser: row.assigned_user_id
+      ? { id: row.assigned_user_id, name: row.assigned_user_name, email: row.assigned_user_email }
+      : null,
+  };
+}
+
 async function assertProjectAccess(projectId, userId) {
-  const project = await prisma.project.findFirst({
-    where: { id: projectId, members: { some: { userId } } },
-  });
-  if (!project) {
+  const { rows } = await q.findProjectForScan(projectId, userId);
+  if (!rows[0]) {
     const err = new Error('Project not found');
     err.status = 404;
     throw err;
   }
-  return project;
+  return rows[0];
 }
 
 export async function startScan(projectId, userId) {
   const project = await assertProjectAccess(projectId, userId);
 
-  const scan = await prisma.scan.create({
-    data: { projectId, triggeredBy: userId, status: 'PENDING', type: 'SAST' },
-    select: { id: true, status: true, type: true, createdAt: true, projectId: true },
-  });
-
+  const { rows: [scan] } = await q.insertScan(projectId, userId, 'SAST', 'semgrep');
   logger.info({ msg: 'Scan started', scanId: scan.id, projectId, userId });
 
-  // Run in background worker thread — does not block event loop
   const worker = new Worker(path.join(__dirname, 'semgrep.worker.js'), {
     workerData: {
       scanId: scan.id,
       projectId,
-      repoUrl: project.repoUrl,
+      repoUrl: project.repo_url,
       branch: project.branch,
       SCAN_TEMP_DIR: env.SCAN_TEMP_DIR,
+      DATABASE_URL: process.env.DATABASE_URL,
     },
   });
 
@@ -58,93 +95,68 @@ export async function startScan(projectId, userId) {
     logger.error({ msg: 'Worker error', scanId: scan.id, error: err.message });
   });
 
-  return scan;
+  return {
+    id: scan.id,
+    status: scan.status,
+    type: scan.type,
+    createdAt: scan.created_at,
+    projectId: scan.project_id,
+  };
 }
 
 export async function listScans(projectId, userId) {
   await assertProjectAccess(projectId, userId);
-  return prisma.scan.findMany({
-    where: { projectId },
-    select: {
-      id: true, type: true, status: true, tool: true,
-      startedAt: true, completedAt: true, summary: true,
-      errorMessage: true, createdAt: true,
-      triggeredByUser: { select: { id: true, name: true, email: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const { rows } = await q.listScans(projectId);
+  return rows.map(mapScan);
 }
 
 export async function getScan(id, userId) {
-  const scan = await prisma.scan.findFirst({
-    where: { id, project: { members: { some: { userId } } } },
-    select: {
-      id: true, type: true, status: true, tool: true,
-      startedAt: true, completedAt: true, summary: true,
-      errorMessage: true, createdAt: true, projectId: true,
-      triggeredByUser: { select: { id: true, name: true, email: true } },
-    },
-  });
-  if (!scan) {
+  const { rows } = await q.findScan(id, userId);
+  if (!rows[0]) {
     const err = new Error('Scan not found');
     err.status = 404;
     throw err;
   }
-  return scan;
+  return mapScan(rows[0]);
 }
 
 export async function getScanFindings(scanId, userId, filters = {}) {
   await getScan(scanId, userId);
-  const where = { scanId };
-  if (filters.severity) where.severity = filters.severity;
-  if (filters.status) where.status = filters.status;
-  if (filters.category) where.category = { contains: filters.category, mode: 'insensitive' };
-
-  return prisma.finding.findMany({
-    where,
-    orderBy: [{ severity: 'asc' }, { createdAt: 'desc' }],
-    select: {
-      id: true, title: true, description: true, severity: true,
-      category: true, cwe: true, owasp: true, filePath: true,
-      lineStart: true, lineEnd: true, codeSnippet: true, rule: true,
-      status: true, notes: true, evidence: true, createdAt: true,
-      assignedUser: { select: { id: true, name: true, email: true } },
-    },
-  });
+  const { rows } = await q.findScanFindings(scanId, filters);
+  return rows.map(mapFinding);
 }
 
 export async function createManualReview(projectId, userId, { title, description, findings }) {
   await assertProjectAccess(projectId, userId);
 
-  return prisma.$transaction(async (tx) => {
-    const scan = await tx.scan.create({
-      data: {
-        projectId,
-        triggeredBy: userId,
-        type: 'MANUAL_REVIEW',
-        status: 'COMPLETED',
-        tool: 'manual',
-        startedAt: new Date(),
-        completedAt: new Date(),
-        summary: {
-          total: findings.length,
-          critical: findings.filter((f) => f.severity === 'CRITICAL').length,
-          high: findings.filter((f) => f.severity === 'HIGH').length,
-          medium: findings.filter((f) => f.severity === 'MEDIUM').length,
-          low: findings.filter((f) => f.severity === 'LOW').length,
-          info: findings.filter((f) => f.severity === 'INFO').length,
-        },
-      },
-    });
+  const summary = {
+    total: findings.length,
+    critical: findings.filter((f) => f.severity === 'CRITICAL').length,
+    high:     findings.filter((f) => f.severity === 'HIGH').length,
+    medium:   findings.filter((f) => f.severity === 'MEDIUM').length,
+    low:      findings.filter((f) => f.severity === 'LOW').length,
+    info:     findings.filter((f) => f.severity === 'INFO').length,
+  };
 
-    await tx.finding.createMany({
-      data: findings.map((f) => ({ ...f, scanId: scan.id })),
-    });
+  return transaction(async (client) => {
+    const { rows: [scan] } = await q.insertManualScan(client, projectId, userId, summary);
 
+    for (const f of findings) {
+      await q.insertFinding(client, { ...f, scanId: scan.id });
+    }
+
+    const { rows: [full] } = await q.findManualScanWithFindings(scan.id);
     logger.info({ msg: 'Manual review created', scanId: scan.id, projectId, userId });
-    return tx.scan.findUnique({
-      where: { id: scan.id },
-      include: { findings: true },
-    });
+    return {
+      id: full.id,
+      type: full.type,
+      status: full.status,
+      tool: full.tool,
+      startedAt: full.started_at,
+      completedAt: full.completed_at,
+      summary: full.summary,
+      createdAt: full.created_at,
+      findings: full.findings ?? [],
+    };
   });
 }

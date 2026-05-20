@@ -185,6 +185,13 @@ export default function PaginaLogin() {
               <a href="#" className="enlace-recuperar">¿Olvidaste tu contraseña?</a>
             </div>
 
+            {alertaGlobal && (
+              <div className="alerta-formulario" role="alert">
+                <i className="bi bi-exclamation-circle"></i>
+                <span>{alertaGlobal}</span>
+              </div>
+            )}
+
             {/* Botón */}
             <button
               className="btn btn--primario btn-acceso"
@@ -195,12 +202,6 @@ export default function PaginaLogin() {
                 {cargando ? "Iniciando sesión..." : "Iniciar sesión"}
               </span>
             </button>
-
-            {alertaGlobal && (
-              <div className="alerta-formulario" role="alert" style={{ backgroundColor: "#fee", color: "#c00", padding: "10px", borderRadius: "4px" }}>
-                {alertaGlobal}
-              </div>
-            )}
           </div>
 
           <div className="formulario-acceso__separador">
@@ -216,6 +217,7 @@ export default function PaginaLogin() {
             </button>
           </div>
 
+          {/* Registro deshabilitado: solo admins pueden crear usuarios desde /gestion-usuarios
           <p className="formulario-acceso__registro">
             ¿No tienes cuenta?{" "}
             <button
@@ -225,6 +227,7 @@ export default function PaginaLogin() {
               Crear cuenta nueva
             </button>
           </p>
+          */}
         </div>
 
         <footer className="panel-formulario__pie">

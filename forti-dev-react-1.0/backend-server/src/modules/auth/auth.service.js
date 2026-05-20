@@ -1,8 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../../config/database.js';
 import { env } from '../../config/env.js';
 import { logger } from '../../config/logger.js';
+import * as q from './auth.queries.js';
 
 const SALT_ROUNDS = 12;
 
@@ -22,18 +22,28 @@ function signRefreshToken(user) {
   );
 }
 
-export async function register({ email, password, name, role, requester }) {
-  const count = await prisma.user.count();
+function mapUser(row) {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: row.role,
+    isActive: row.is_active ?? row.isActive,
+    createdAt: row.created_at ?? row.createdAt,
+  };
+}
 
-  // After first user exists, only ADMIN can register new users
+export async function register({ email, password, name, role, requester }) {
+  const { rows: [{ count }] } = await q.countUsers();
+
   if (count > 0 && requester?.role !== 'ADMIN') {
     const err = new Error('Only admins can register new users');
     err.status = 403;
     throw err;
   }
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
+  const { rows: existing } = await q.findUserByEmail(email);
+  if (existing.length > 0) {
     const err = new Error('Email already in use');
     err.status = 409;
     throw err;
@@ -41,18 +51,17 @@ export async function register({ email, password, name, role, requester }) {
 
   const assignedRole = count === 0 ? 'ADMIN' : (role ?? 'DEVELOPER');
   const hashed = await bcrypt.hash(password, SALT_ROUNDS);
-  const user = await prisma.user.create({
-    data: { email, password: hashed, name, role: assignedRole },
-    select: { id: true, email: true, name: true, role: true, createdAt: true },
-  });
+  const { rows: [user] } = await q.insertUser(email, hashed, name, assignedRole);
 
   logger.info({ msg: 'User registered', userId: user.id, role: user.role });
-  return user;
+  return mapUser(user);
 }
 
 export async function login({ email, password }) {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.isActive) {
+  const { rows } = await q.findUserByEmail(email);
+  const user = rows[0];
+
+  if (!user || !user.is_active) {
     const err = new Error('Invalid credentials');
     err.status = 401;
     throw err;
@@ -70,13 +79,11 @@ export async function login({ email, password }) {
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
-  await prisma.refreshToken.create({
-    data: { token: refreshToken, userId: user.id, expiresAt },
-  });
+  await q.insertRefreshToken(user.id, refreshToken, expiresAt);
 
   logger.info({ msg: 'User logged in', userId: user.id });
-  const { password: _pw, ...safeUser } = user;
-  return { accessToken, refreshToken, user: safeUser };
+  const { password: _pw, ...safeRow } = user;
+  return { accessToken, refreshToken, user: mapUser(safeRow) };
 }
 
 export async function refresh(rawCookieToken) {
@@ -86,43 +93,40 @@ export async function refresh(rawCookieToken) {
     throw err;
   }
 
-  let payload;
   try {
-    payload = jwt.verify(rawCookieToken, env.REFRESH_TOKEN_SECRET);
+    jwt.verify(rawCookieToken, env.REFRESH_TOKEN_SECRET);
   } catch {
     const err = new Error('Invalid refresh token');
     err.status = 401;
     throw err;
   }
 
-  const stored = await prisma.refreshToken.findUnique({ where: { token: rawCookieToken } });
-  if (!stored || stored.expiresAt < new Date()) {
+  const { rows } = await q.findRefreshToken(rawCookieToken);
+  const stored = rows[0];
+  if (!stored) {
     const err = new Error('Refresh token expired or revoked');
     err.status = 401;
     throw err;
   }
-
-  const user = await prisma.user.findUnique({ where: { id: payload.sub } });
-  if (!user || !user.isActive) {
+  if (!stored.is_active) {
     const err = new Error('User not found or inactive');
     err.status = 401;
     throw err;
   }
 
-  await prisma.refreshToken.delete({ where: { id: stored.id } });
+  await q.deleteRefreshTokenById(stored.id);
+  const user = { id: stored.uid, email: stored.email, role: stored.role };
   const newAccessToken = signAccessToken(user);
   const newRefreshToken = signRefreshToken(user);
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7);
-  await prisma.refreshToken.create({
-    data: { token: newRefreshToken, userId: user.id, expiresAt },
-  });
+  await q.insertRefreshToken(stored.uid, newRefreshToken, expiresAt);
 
   return { accessToken: newAccessToken, refreshToken: newRefreshToken };
 }
 
 export async function logout(rawCookieToken) {
   if (!rawCookieToken) return;
-  await prisma.refreshToken.deleteMany({ where: { token: rawCookieToken } });
+  await q.deleteRefreshTokenByValue(rawCookieToken);
 }

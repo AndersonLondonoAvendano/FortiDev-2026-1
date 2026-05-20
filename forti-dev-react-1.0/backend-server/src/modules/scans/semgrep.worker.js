@@ -3,11 +3,14 @@ import path from 'path';
 import fs from 'fs/promises';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import pg from 'pg';
 import simpleGit from 'simple-git';
-import { PrismaClient } from '@prisma/client';
 
+const { Pool } = pg;
 const execFileAsync = promisify(execFile);
-const prisma = new PrismaClient();
+
+// Worker creates its own pool — does not share with main thread
+const pool = new Pool({ connectionString: workerData.DATABASE_URL });
 
 const SEVERITY_MAP = {
   ERROR: 'CRITICAL',
@@ -43,21 +46,19 @@ function extractOwasp(metadata) {
 }
 
 async function run() {
-  const { scanId, projectId, repoUrl, branch, scanDir, SCAN_TEMP_DIR } = workerData;
+  const { scanId, repoUrl, branch, SCAN_TEMP_DIR } = workerData;
   const cloneDir = path.join(SCAN_TEMP_DIR, scanId);
 
   try {
-    await prisma.scan.update({
-      where: { id: scanId },
-      data: { status: 'RUNNING', startedAt: new Date() },
-    });
+    await pool.query(
+      `UPDATE scans SET status = 'RUNNING', started_at = NOW() WHERE id = $1`,
+      [scanId]
+    );
 
-    // Clone repository
     await fs.mkdir(cloneDir, { recursive: true });
     const git = simpleGit();
     await git.clone(repoUrl, cloneDir, ['--depth', '1', '--branch', branch]);
 
-    // Run semgrep with timeout (10 minutes)
     const { stdout } = await execFileAsync(
       'semgrep',
       ['--config=p/security-audit', '--config=p/owasp-top-ten', '--json', cloneDir],
@@ -67,11 +68,9 @@ async function run() {
     const semgrepOutput = JSON.parse(stdout);
     const results = semgrepOutput.results ?? [];
 
-    // Map semgrep results to findings
     const findingsData = results.map((r) => {
       const meta = r.extra?.metadata;
       return {
-        scanId,
         title: formatRuleName(r.check_id),
         description: r.extra?.message ?? meta?.description ?? 'Sin descripción disponible',
         severity: mapSeverity(r.extra?.severity),
@@ -87,38 +86,53 @@ async function run() {
     });
 
     const summary = findingsData.reduce(
-      (acc, f) => {
-        acc.total++;
-        acc[f.severity.toLowerCase()]++;
-        return acc;
-      },
+      (acc, f) => { acc.total++; acc[f.severity.toLowerCase()]++; return acc; },
       { total: 0, critical: 0, high: 0, medium: 0, low: 0, info: 0 }
     );
 
-    await prisma.$transaction([
-      prisma.finding.createMany({ data: findingsData }),
-      prisma.scan.update({
-        where: { id: scanId },
-        data: {
-          status: 'COMPLETED',
-          completedAt: new Date(),
-          rawOutput: semgrepOutput,
-          summary,
-        },
-      }),
-    ]);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      for (const f of findingsData) {
+        await client.query(
+          `INSERT INTO findings
+             (scan_id, title, description, severity, category, cwe, owasp,
+              file_path, line_start, line_end, code_snippet, rule)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          [
+            scanId, f.title, f.description, f.severity,
+            f.category, f.cwe, f.owasp,
+            f.filePath, f.lineStart, f.lineEnd, f.codeSnippet, f.rule,
+          ]
+        );
+      }
+
+      await client.query(
+        `UPDATE scans
+         SET status = 'COMPLETED', completed_at = NOW(),
+             raw_output = $1, summary = $2
+         WHERE id = $3`,
+        [JSON.stringify(semgrepOutput), JSON.stringify(summary), scanId]
+      );
+
+      await client.query('COMMIT');
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) {
-    await prisma.scan.update({
-      where: { id: scanId },
-      data: {
-        status: 'FAILED',
-        completedAt: new Date(),
-        errorMessage: err.message?.slice(0, 500) ?? 'Unknown error',
-      },
-    }).catch(() => {});
+    await pool.query(
+      `UPDATE scans
+       SET status = 'FAILED', completed_at = NOW(), error_message = $1
+       WHERE id = $2`,
+      [err.message?.slice(0, 500) ?? 'Unknown error', scanId]
+    ).catch(() => {});
   } finally {
     await fs.rm(cloneDir, { recursive: true, force: true }).catch(() => {});
-    await prisma.$disconnect();
+    await pool.end();
   }
 }
 

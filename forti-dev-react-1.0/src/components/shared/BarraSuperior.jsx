@@ -4,7 +4,11 @@
  * Muestra breadcrumb, búsqueda global y botones de acción.
  */
 
+import { useOrg } from "../../context/OrgContext.jsx";
+
 export default function BarraSuperior({ titulo, placeholder }) {
+  const { currentOrg } = useOrg();
+
   return (
     <header className="barra-superior" role="banner">
       {/* Breadcrumb + título */}
@@ -13,7 +17,7 @@ export default function BarraSuperior({ titulo, placeholder }) {
           className="titulo-pagina__breadcrumb"
           aria-label="Ruta de navegación"
         >
-          <span>TecnoApp SAS</span>
+          <span>{currentOrg?.name ?? "Sin organización"}</span>
           <span className="separador">›</span>
         </nav>
         <h1 className="titulo-pagina__actual">{titulo}</h1>

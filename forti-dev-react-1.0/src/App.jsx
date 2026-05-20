@@ -1,10 +1,11 @@
 import { Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext.jsx";
+import { OrgProvider } from "./context/OrgContext.jsx";
 import ProtectedRoute from "./components/ProtectedRoute.jsx";
 import AdminRoute from "./components/AdminRoute.jsx";
 import PaginaInicio from "./pages/PaginaInicio.jsx";
 import PaginaLogin from "./pages/PaginaLogin.jsx";
-import PaginaRegistro from "./pages/PaginaRegistro.jsx";
+// import PaginaRegistro from "./pages/PaginaRegistro.jsx"; // Solo accesible para admins via /gestion-usuarios
 import PaginaDashboard from "./pages/PaginaDashboard.jsx";
 import PaginaProyectos from "./pages/PaginaProyectos.jsx";
 import PaginaHallazgos from "./pages/PaginaHallazgos.jsx";
@@ -13,17 +14,17 @@ import PaginaGestionUsuarios from "./pages/PaginaGestionUsuarios.jsx";
 import PaginaOrganizaciones from "./pages/PaginaOrganizaciones.jsx";
 import PaginaDetalleOrganizacion from "./pages/PaginaDetalleOrganizacion.jsx";
 import estilos from "./styles/estilos.js";
-import Users from "../src/components/shared/Users.jsx";
 
 export default function App() {
   return (
     <AuthProvider>
+      <OrgProvider>
       <style dangerouslySetInnerHTML={{ __html: estilos }} />
       <Routes>
         {/* Rutas públicas */}
         <Route path="/" element={<PaginaInicio />} />
         <Route path="/login" element={<PaginaLogin />} />
-        <Route path="/registro" element={<PaginaRegistro />} />
+        {/* <Route path="/registro" element={<PaginaRegistro />} /> */}
 
         {/* Rutas protegidas - Requieren autenticación */}
         <Route
@@ -85,18 +86,10 @@ export default function App() {
             </AdminRoute>
           }
         />
-        <Route
-          path="/users"
-          element={
-            <AdminRoute>
-              <Users />
-            </AdminRoute>
-          }
-        />
-
         {/* Ruta de fallback */}
         <Route path="*" element={<PaginaInicio />} />
       </Routes>
+      </OrgProvider>
     </AuthProvider>
   );
 }

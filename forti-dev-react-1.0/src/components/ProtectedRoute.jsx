@@ -8,13 +8,24 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 
 export default function ProtectedRoute({ children }) {
-  const { isAuth, token } = useAuth();
+  const { isAuth, isLoading } = useAuth();
 
-  // Si no hay token y no está autenticado, redirige a login
-  if (!isAuth || !token) {
+  if (isLoading) {
+    return (
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "center",
+        height: "100vh", background: "var(--color-fondo)",
+        color: "var(--color-texto-tenue)", fontFamily: "var(--fuente-mono)",
+        fontSize: "0.85rem", gap: "10px",
+      }}>
+        <span style={{ opacity: 0.5 }}>●</span> Verificando sesión…
+      </div>
+    );
+  }
+
+  if (!isAuth) {
     return <Navigate to="/login" replace />;
   }
 
-  // Si está autenticado, renderiza el componente
   return children;
 }
